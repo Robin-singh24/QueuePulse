@@ -2,7 +2,8 @@ import logging
 import json
 from confluent_kafka import Producer 
 
-logger = logging.getLogger()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 config={
     "bootstrap.servers": "kafka:9092"
@@ -15,16 +16,21 @@ def delivery_report(err,msg):
         logger.error(f"Delivery failed {err}")
     else:
         logger.info(
-            f"Message delivered successfully to {msg.topic() [{msg.partition()}]}"
+            f"Message delivered successfully to {msg.topic()} [{msg.partition()}]"
         )
     
 
 def publish_job(topic: str, data:dict):
 
-    producer.produce(
-        topic,
-        json.dumps(data).encode("utf-8"),
-        callback=delivery_report
-    )
+    try:
+        producer.produce(
+            topic,
+            json.dumps(data).encode("utf-8"),
+            callback=delivery_report
+        )
 
-    producer.flush()
+        producer.flush()
+    
+    except Exception as e:
+        logger.error(f"Failed to publish job: {str(e)}")
+        raise e
