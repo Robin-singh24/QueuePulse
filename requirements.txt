@@ -1,0 +1,26 @@
+fastapi
+uvicorn[standard]
+
+# database 
+sqlalchemy
+asyncpg
+psycopg2-binary
+
+# Validations
+pydantic
+
+# Kafka
+confluent-kafka
+
+# Redis
+redis
+
+# web sockets
+websockets 
+
+# Monitoring
+prometheus-client
+
+httpx
+python-dotenv
+
