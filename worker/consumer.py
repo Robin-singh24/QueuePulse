@@ -11,6 +11,7 @@ from sqlalchemy import update
 from worker.db import AsyncSessionLocal
 from api.db.models import Job
 from worker.dlq_producer import publish_to_dlq
+from worker.redis_publisher import publish_job_updates
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,6 +49,13 @@ async def updated_job_status(
             await db.execute(stmt)
 
             await db.commit()
+
+            await publish_job_updates({
+                "job_id" : job_id,
+                "status": status,
+                "retry_count": retry_count,
+                "error_message": error_message
+            })
 
             logger.info(
                 f"Updated job {job_id} -> {status}"
@@ -124,7 +132,7 @@ async def process_job(event: dict):
                 str(e)
             )
 
-            event["final-error"] = str(e)
+            event["final_error"] = str(e)
             await publish_to_dlq(event)
             logger.critical(
                 f"Job moved to DLQ: {job_id}"
