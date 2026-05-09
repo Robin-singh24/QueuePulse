@@ -1,12 +1,13 @@
 import uuid
 import logging
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
 from shared.schemas.job_schema import JobCreate
 from api.services.kafka_producer import publish_job
 from api.db.database import engine, Base
 from api.db.models import Job
+from api.websocket.manager import manager
 
 
 logging.basicConfig(level=logging.INFO)
@@ -61,5 +62,19 @@ async def create_job(job: JobCreate):
             detail="Failed to publish job event"
         )
 
-    
 
+@app.websocket("/ws/jobs")
+async def websocket_jobs(websocket: WebSocket):
+
+    await manager.connect(websocket)
+
+    try: 
+        while True:
+            await websocket.receive_text()
+            
+    except WebSocketDisconnect as e:
+        logger.info("Client disconnected")
+    except Exception as e:
+        logger.error(f"WebSocket error: {str(e)}")
+    finally:
+        manager.disconnect(websocket)
