@@ -70,3 +70,32 @@ services:
 
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+
+prometheus:
+  image: prom/prometheus
+  container_name: pulsequeue-prometheus
+
+  ports:
+    - "9090:9090"
+
+  volumes:
+    - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  depends_on:
+    - api
+
+  restart: on-failure
+
+
+grafana:
+  image: grafana/grafana
+  container_name: pulsequeue-grafana
+
+  ports:
+    - "3000:3000"
+
+  depends_on:
+    - prometheus
+
+  restart: on-failure
