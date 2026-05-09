@@ -5,11 +5,11 @@ services:
   api:
     build: .
     container_name: pulsequeue-api
-    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000
+    command: uv run uvicorn api.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
-    depends on:
-      - kakfa
+    depends_on:
+      - kafka
       - postgres
       - redis
     volumes:
@@ -19,9 +19,9 @@ services:
   worker:
     build: .
     container_name: pulsequeue-worker
-    command: uv run python worker.py
-    depends on:
-      - kakfa
+    command: uv run python worker/consumer.py
+    depends_on:
+      - kafka
       - postgres
       - redis
     volumes:
@@ -32,16 +32,16 @@ services:
     image: postgres:15
     container_name: pulsequeue-postgres
     environment:
-      - POSTGRES_USER: admin
-      - POSTGRES_PASSWORD: admin
-      - POSTGRES_DB: pulsequeue
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: pulsequeue
     ports:
       - "5432:5432"
   
 
   redis:
     image: redis:7
-    comtainer_name: pulsequeue-redis
+    container_name: pulsequeue-redis
     ports:
       - "6379:6379"
   

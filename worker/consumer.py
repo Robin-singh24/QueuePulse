@@ -19,6 +19,8 @@ config = {
 
 consumer = Consumer(config)
 
+consumer.subscribe(["jobs.created"])
+
 MAX_RETRIES = 3
 
 def process_job(event: dict):
