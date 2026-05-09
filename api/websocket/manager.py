@@ -1,6 +1,8 @@
 import logging
 from fastapi import WebSocket
 
+from api.services.metrics import active_websocket_connections
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -12,13 +14,15 @@ class ConnectionManager:
     async def connect(self, websocket:WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        active_websocket_connections.inc()
         logger.info("Websocket client connected!")
 
 
     def disconnect(self, websocket:WebSocket):
-        self.active_connections.remove(websocket)
-        
-        logger.warning("WebSocket client disconnected")
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+            active_websocket_connections.dec()
+            logger.warning("WebSocket client disconnected")
 
 
     async def broadcast(self, message: dict):

@@ -12,6 +12,12 @@ from worker.db import AsyncSessionLocal
 from api.db.models import Job
 from worker.dlq_producer import publish_to_dlq
 from worker.redis_publisher import publish_job_updates
+from api.services.metrics import (
+    job_processing_duration,
+    job_retries_total,
+    jobs_failed_total,
+    jobs_processed_total
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,6 +77,7 @@ async def updated_job_status(
 async def process_job(event: dict):
     
     job_id = event['job_id']
+    start_time = time.time()
 
     retry_count = int(event.get("retry_count", 0))
 
@@ -93,6 +100,11 @@ async def process_job(event: dict):
             retry_count
         )
 
+        jobs_processed_total.inc()
+        job_processing_duration.observe(
+            time.time() - start_time
+        )
+
         logger.info(
             f"Job processed successfully: {job_id}"
         )
@@ -102,6 +114,7 @@ async def process_job(event: dict):
 
         if retry_count < MAX_RETRIES:
             retry_count += 1
+            job_retries_total.inc()
             
             backoff_time = 2 ** retry_count
 
@@ -131,6 +144,7 @@ async def process_job(event: dict):
                 retry_count,
                 str(e)
             )
+            jobs_failed_total.inc()
 
             event["final_error"] = str(e)
             await publish_to_dlq(event)

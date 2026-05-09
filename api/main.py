@@ -13,6 +13,12 @@ from api.websocket.manager import manager
 from api.services.redis_pubsub import redis_subscriber
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.db.database import get_db
+from fastapi.responses import Response
+
+from prometheus_client import (
+    generate_latest,
+    CONTENT_TYPE_LATEST
+)
 
 
 logging.basicConfig(level=logging.INFO)
@@ -104,3 +110,10 @@ async def websocket_jobs(websocket: WebSocket):
         logger.error(f"WebSocket error: {str(e)}")
     finally:
         manager.disconnect(websocket)
+
+@app.get("/metrics")
+async def metrics():
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
