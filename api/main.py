@@ -5,6 +5,9 @@ from fastapi import FastAPI, HTTPException
 
 from shared.schemas.job_schema import JobCreate
 from api.services.kafka_producer import publish_job
+from api.db.database import engine, Base
+from api.db.models import Job
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,6 +19,15 @@ async def health():
     return {
         "status" : "running"
     }
+
+
+@app.on_event("startup")
+async def startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    logger.info("Database tables created")
+
 
 @app.post("/jobs")
 async def create_job(job: JobCreate):

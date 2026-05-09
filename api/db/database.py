@@ -6,7 +6,7 @@ DATABSE_URL = "postgresql+asyncpg://admin:admin@postgres:5432/pulsequeue"
 
 engine = create_async_engine(
     DATABSE_URL,
-    echo=True
+    echo=False
 )
 
 AsyncSessionLocal = async_sessionmaker(
