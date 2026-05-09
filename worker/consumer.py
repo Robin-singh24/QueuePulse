@@ -1,11 +1,15 @@
-from confluent_kafka import KafkaException
-import logging
-import logging
-import time
 import json
+import time
 import random
+import asyncio
+import logging
 
-from confluent_kafka import Consumer
+from confluent_kafka import KafkaException,Consumer
+from sqlalchemy import update
+
+
+from worker.db import AsyncSessionLocal
+from api.db.models import Job
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,20 +27,66 @@ consumer.subscribe(["jobs.created"])
 
 MAX_RETRIES = 3
 
-def process_job(event: dict):
+async def updated_job_status(
+    job_id: str,
+    status: str,
+    retry_count: int =0,
+    error_message: str = None 
+):
+    async with AsyncSessionLocal() as db:
+        try:
+            stmt = (
+                update(Job)
+                .where(Job.id == job_id)
+                .values(
+                    status=status,
+                    retry_count=retry_count,
+                    error_message=error_message
+                )
+            )
+            await db.execute(stmt)
+
+            await db.commit()
+
+            logger.info(
+                f"Updated job {job_id} -> {status}"
+            )
+        except Exception as e:
+            await db.rollback()
+
+            logger.error(
+                f"Failed DB update for {job_id}: {str(e)}"
+            )
+
+
+async def process_job(event: dict):
     
     job_id = event['job_id']
 
     retry_count = int(event.get("retry_count", 0))
 
     try:
-        logger.info(f"Processing job : {job_id}")
-        time.sleep(random.uniform(2,5))
+        await updated_job_status(
+            job_id,
+            "PROCESSING",
+            retry_count
+        )
+
+        logger.info(f"Processing job: {job_id}")
+        await asyncio.sleep(3)
 
         if random.random() < 0.4:
             raise Exception("Simulated processing failure")
-        
-        logger.info(f"Job processed successfully: {job_id}")
+
+        await updated_job_status(
+            job_id,
+            "SUCCESS",
+            retry_count
+        )
+
+        logger.info(
+            f"Job processed successfully: {job_id}"
+        )
 
     except Exception as e:
         logger.error(f"Job processing failed for {job_id} : {str(e)}")
@@ -46,51 +96,80 @@ def process_job(event: dict):
             
             backoff_time = 2 ** retry_count
 
+            await updated_job_status(
+                job_id,
+                "RETRYING",
+                retry_count,
+                str(e)
+            )
+
             logger.warning(
                 f"Retrying job {job_id} "
                 f"in {backoff_time}s "
                 f"(attempt {retry_count})"
             )
 
-            time.sleep(backoff_time)
+            await asyncio.sleep(backoff_time)
 
             event["retry_count"] = retry_count
-            process_job(event)
+
+            await process_job(event)
         
         else:
+            await updated_job_status(
+                job_id,
+                "DLQ",
+                retry_count,
+                str(e)
+            )
             logger.critical(
                 f"Job moved to DLQ: {job_id}"
             )
 
 
-try:
-    logger.info("Kafka consumer started")
+async def main():
 
-    while True:
-        msg = consumer.poll(1.0)
+    try:
 
-        if msg is None:
-            continue
+        logger.info("Kafka consumer started")
 
-        if msg.error():
-            raise KafkaException(msg.error())
+        while True:
 
-        event = json.loads(msg.value().decode("utf-8"))
+            msg = consumer.poll(1.0)
 
-        logger.info(f"Received event: {event}")
+            if msg is None:
+                continue
 
-        process_job(event)  
+            if msg.error():
+                raise KafkaException(msg.error())
 
-except KeyboardInterrupt:
+            event = json.loads(
+                msg.value().decode("utf-8")
+            )
 
-    logger.info("Consumer stopped manually")
+            logger.info(
+                f"Received event: {event}"
+            )
 
-except Exception as e:
+            await process_job(event)
 
-    logger.error(f"Consumer crashed: {str(e)}")
+    except KeyboardInterrupt:
 
-finally:
+        logger.info("Consumer stopped manually")
 
-    consumer.close()
+    except Exception as e:
 
-    logger.info("Kafka consumer closed")
+        logger.error(
+            f"Consumer crashed: {str(e)}"
+        )
+
+    finally:
+
+        consumer.close()
+
+        logger.info("Kafka consumer closed")
+
+
+if __name__ == "__main__":
+
+    asyncio.run(main())
