@@ -1,5 +1,6 @@
 import uuid
 import logging
+import asyncio
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -8,6 +9,7 @@ from api.services.kafka_producer import publish_job
 from api.db.database import engine, Base
 from api.db.models import Job
 from api.websocket.manager import manager
+from api.services.redis_pubsub import redis_subscriber
 
 
 logging.basicConfig(level=logging.INFO)
@@ -24,10 +26,14 @@ async def health():
 
 @app.on_event("startup")
 async def startup():
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    asyncio.create_task(redis_subscriber())
     
     logger.info("Database tables created")
+    logger.info("Redis pub/sub subscriber started")
 
 
 @app.post("/jobs")
