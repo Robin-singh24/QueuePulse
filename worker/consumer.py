@@ -10,7 +10,7 @@ from sqlalchemy import update
 
 from worker.db import AsyncSessionLocal
 from api.db.models import Job
-from worker.
+from worker.dlq_producer import publish_to_dlq
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -123,6 +123,9 @@ async def process_job(event: dict):
                 retry_count,
                 str(e)
             )
+
+            event["final-error"] = str(e)
+            await publish_to_dlq(event)
             logger.critical(
                 f"Job moved to DLQ: {job_id}"
             )

@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 config ={
-    "bootstrap-servers": "kafka:9092"
+    "bootstrap.servers": "kafka:9092"
 }
 
 producer = Producer(config)
