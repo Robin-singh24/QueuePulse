@@ -1,8 +1,9 @@
 import uuid
 import logging
 import asyncio
+import json
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends
 
 from shared.schemas.job_schema import JobCreate
 from api.services.kafka_producer import publish_job
@@ -10,6 +11,8 @@ from api.db.database import engine, Base
 from api.db.models import Job
 from api.websocket.manager import manager
 from api.services.redis_pubsub import redis_subscriber
+from sqlalchemy.ext.asyncio import AsyncSession
+from api.db.database import get_db
 
 
 logging.basicConfig(level=logging.INFO)
@@ -37,18 +40,34 @@ async def startup():
 
 
 @app.post("/jobs")
-async def create_job(job: JobCreate):
+async def create_job(job: JobCreate, db: AsyncSession = Depends(get_db)):
 
     job_id = str(uuid.uuid4())
 
     event = {
-        "job_id": job_id,
+        "job_id": str(job_id),
         "type": job.type,
         "payload": job.payload,
         "status": "QUEUED"
     }
 
     try:
+        db_job = Job(
+            id=job_id,
+            type=job.type,
+            payload=json.dumps(job.payload),
+            status="QUEUED"
+        )
+
+        db.add(db_job)
+
+        await db.commit()
+
+        await db.refresh(db_job)
+
+        logger.info(
+            f"Inserted job into DB: {job_id}"
+        )
         publish_job(
             topic="jobs.created",
             data=event
@@ -61,6 +80,7 @@ async def create_job(job: JobCreate):
             "job_id": job_id
         }
     except Exception as e:
+        await db.rollback()
         logger.error(f"Failed to queue job: {str(e)}")
 
         raise HTTPException(
