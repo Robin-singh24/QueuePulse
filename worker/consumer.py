@@ -10,6 +10,7 @@ from sqlalchemy import update
 
 from worker.db import AsyncSessionLocal
 from api.db.models import Job
+from worker.
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
