@@ -14,6 +14,7 @@ from api.services.redis_pubsub import redis_subscriber
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.db.database import get_db
 from fastapi.responses import Response
+from sqlalchemy import select
 
 from prometheus_client import (
     generate_latest,
@@ -98,6 +99,37 @@ async def create_webhook_event(webhook: WebhookCreate, db: AsyncSession = Depend
             detail="Failed to queue webhook"
         )
 
+@app.get("/webhooks")
+async def get_webhooks(db:AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(WebhookEvent)
+        .order_by(
+            WebhookEvent.created_at.desc()
+        )
+    )
+
+    webhooks = result.scalars().all()
+    
+    return webhooks
+
+@app.get("/webhooks/{webhook_id}")
+async def get_webhook(webhook_id:str, db:AsyncSession=Depends(get_db)):
+    result = await db.execute(
+        select(WebhookEvent)
+        .where(
+            WebhookEvent.id == webhook_id
+        )
+    )
+
+    webhook = result.scalar_one_or_none()
+
+    if not webhook:
+        raise HTTPException(
+            status_code=404,
+            detail="Webhook not found"
+        )
+
+    return webhook
 
 @app.websocket("/ws/webhooks")
 async def websocket_webhooks(websocket: WebSocket):
