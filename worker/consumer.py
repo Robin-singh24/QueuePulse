@@ -20,23 +20,26 @@ from api.services.metrics import (
     jobs_processed_total
 )
 
+from shared.config import (
+    MAX_RETRIES,
+    MAX_CONCURRENT_JOBS,
+    KAFKA_BOOTSTRAP_SERVERS,
+    KAFKA_TOPIC_WEBHOOKS
+)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 config = {
-    'bootstrap.servers': 'kafka:9092',
+    'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
     'group.id': 'pulsequeue-workers',
     'auto.offset.reset': 'earliest'
 }
 
 consumer = Consumer(config)
 
-consumer.subscribe(["webhooks.created"])
-
-MAX_RETRIES = 3
-
-MAX_CONCURRENT_JOBS = 10
+consumer.subscribe([KAFKA_TOPIC_WEBHOOKS])
 
 semaphore = asyncio.Semaphore(
     MAX_CONCURRENT_JOBS

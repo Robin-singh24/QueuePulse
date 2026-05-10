@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import declarative_base
 
 
-DATABASE_URL = "postgresql+asyncpg://admin:admin@postgres:5432/pulsequeue"
+from shared.config import DATABASE_URL
 
 engine = create_async_engine(
     DATABASE_URL,

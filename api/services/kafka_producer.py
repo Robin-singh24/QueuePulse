@@ -2,11 +2,13 @@ import logging
 import json
 from confluent_kafka import Producer 
 
+from shared.config import KAFKA_BOOTSTRAP_SERVERS
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 config={
-    "bootstrap.servers": "kafka:9092"
+    "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS
 }
 
 producer = Producer(config)

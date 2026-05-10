@@ -5,14 +5,14 @@ import logging
 import redis.asyncio as redis
 
 from api.websocket.manager import manager
+from shared.config import REDIS_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 redis_client = redis.Redis(
-    host="redis",
-    port=6379,
+    REDIS_URL,
     decode_responses=True
 )
 
