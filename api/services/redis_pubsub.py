@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-redis_client = redis.Redis(
+redis_client = redis.from_url(
     REDIS_URL,
     decode_responses=True
 )

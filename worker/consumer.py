@@ -1,3 +1,4 @@
+#worker/consumer.py
 import json
 import time
 import asyncio
@@ -41,9 +42,6 @@ consumer = Consumer(config)
 
 consumer.subscribe([KAFKA_TOPIC_WEBHOOKS])
 
-semaphore = asyncio.Semaphore(
-    MAX_CONCURRENT_JOBS
-)
 
 async def update_webhook_status(
     webhook_id: str,
@@ -177,13 +175,22 @@ async def process_with_semaphore(
 
 async def main():
 
+    global semaphore
+
+    semaphore = asyncio.Semaphore(
+        MAX_CONCURRENT_JOBS
+    )
+
     try:
         start_http_server(9000)
         logger.info("Kafka consumer started")
 
         while True:
 
-            msg = consumer.poll(1.0)
+            msg = await asyncio.to_thread(
+                consumer.poll,
+                1.0
+            )
 
             if msg is None:
                 continue
@@ -199,9 +206,16 @@ async def main():
                 f"Received event: {event}"
             )
 
-            asyncio.create_task(
+            task = asyncio.create_task(
                 process_with_semaphore(event)
             )
+
+            task.add_done_callback(
+                lambda t: logger.error(
+                    f"Task failed: {t.exception()}"
+                ) if t.exception() else None
+            )
+            await asyncio.sleep(0)
 
     except KeyboardInterrupt:
 

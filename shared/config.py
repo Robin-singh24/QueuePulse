@@ -21,12 +21,11 @@ KAFKA_TOPIC_WEBHOOKS = os.getenv(
 )
 
 MAX_RETRIES = int(
-    os.getenv("MAX_RETRIES", 3)
+    os.getenv("MAX_RETRIES") or 3
 )
 
 MAX_CONCURRENT_JOBS = int(
     os.getenv(
-        "MAX_CONCURRENT_JOBS",
-        10
-    )
+        "MAX_CONCURRENT_JOBS"
+    ) or 10
 )

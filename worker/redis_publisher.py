@@ -3,13 +3,14 @@ import logging
 
 import redis.asyncio as redis
 
+from shared.config import REDIS_URL
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-redis_client = redis.Redis(
-    host="redis",
-    port=6379,
+REDIS_CLIENT = redis.from_url(
+    REDIS_URL,
     decode_responses=True
 )
 
@@ -17,7 +18,7 @@ CHANNEL_NAME = "job_updates"
 
 async def publish_job_updates(event: dict):
     try:
-        await redis_client.publish(
+        await REDIS_CLIENT.publish(
             CHANNEL_NAME,
             json.dumps(event)
         )
