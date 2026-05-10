@@ -5,10 +5,10 @@ import json
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends
 
-from shared.schemas.job_schema import JobCreate
+from api.schemas.webhook_schema import WebhookCreate
 from api.services.kafka_producer import publish_job
 from api.db.database import engine, Base
-from api.db.models import Job
+from api.db.models import WebhookEvent
 from api.websocket.manager import manager
 from api.services.redis_pubsub import redis_subscriber
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,58 +45,62 @@ async def startup():
     logger.info("Redis pub/sub subscriber started")
 
 
-@app.post("/jobs")
-async def create_job(job: JobCreate, db: AsyncSession = Depends(get_db)):
+@app.post("/webhooks")
+async def create_webhook_event(webhook: WebhookCreate, db: AsyncSession = Depends(get_db)):
 
-    job_id = str(uuid.uuid4())
+    webhook_id = uuid.uuid4()
 
     event = {
-        "job_id": str(job_id),
-        "type": job.type,
-        "payload": job.payload,
+        "webhook_id": str(webhook_id),
+        "webhook_url": webhook.webhook_url,
+        "event_type": webhook.event_type,
+        "payload": webhook.payload,
         "status": "QUEUED"
     }
 
     try:
-        db_job = Job(
-            id=job_id,
-            type=job.type,
-            payload=json.dumps(job.payload),
+        db_webhook = WebhookEvent(
+            id=webhook_id,
+            webhook_url=webhook.webhook_url,
+            event_type=webhook.event_type,
+            payload=json.dumps(webhook.payload),
             status="QUEUED"
         )
 
-        db.add(db_job)
+        db.add(db_webhook)
 
         await db.commit()
 
-        await db.refresh(db_job)
+        await db.refresh(db_webhook)
 
         logger.info(
-            f"Inserted job into DB: {job_id}"
+            f"Inserted webhooks into DB: {webhook_id}"
         )
         publish_job(
-            topic="jobs.created",
+            topic="webhooks.created",
             data=event
         )
 
-        logger.info(f"Job queued successfully: {job_id}")
+        logger.info(f"Webhook queued successfully: {webhook_id}")
 
         return {
-            "message": "Job Queued",
-            "job_id": job_id
+            "message": "Webhook queued",
+            "webhook_id": str(webhook_id)
         }
+
     except Exception as e:
         await db.rollback()
-        logger.error(f"Failed to queue job: {str(e)}")
+
+        logger.error(f"Failed to queue webhook: {str(e)}")
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to publish job event"
+            detail="Failed to queue webhook"
         )
 
 
-@app.websocket("/ws/jobs")
-async def websocket_jobs(websocket: WebSocket):
+@app.websocket("/ws/webhooks")
+async def websocket_webhooks(websocket: WebSocket):
 
     await manager.connect(websocket)
 

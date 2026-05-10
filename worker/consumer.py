@@ -1,15 +1,16 @@
 import json
 import time
-import random
 import asyncio
 import logging
 
 from confluent_kafka import KafkaException,Consumer
 from sqlalchemy import update
+from prometheus_client import start_http_server
 
 
+from worker.delivery_service import deliver_webhook
 from worker.db import AsyncSessionLocal
-from api.db.models import Job
+from api.db.models import WebhookEvent
 from worker.dlq_producer import publish_to_dlq
 from worker.redis_publisher import publish_job_updates
 from api.services.metrics import (
@@ -31,12 +32,18 @@ config = {
 
 consumer = Consumer(config)
 
-consumer.subscribe(["jobs.created"])
+consumer.subscribe(["webhooks.created"])
 
 MAX_RETRIES = 3
 
-async def updated_job_status(
-    job_id: str,
+MAX_CONCURRENT_JOBS = 10
+
+semaphore = asyncio.Semaphore(
+    MAX_CONCURRENT_JOBS
+)
+
+async def update_webhook_status(
+    webhook_id: str,
     status: str,
     retry_count: int =0,
     error_message: str = None 
@@ -44,8 +51,8 @@ async def updated_job_status(
     async with AsyncSessionLocal() as db:
         try:
             stmt = (
-                update(Job)
-                .where(Job.id == job_id)
+                update(WebhookEvent)
+                .where(WebhookEvent.id == webhook_id)
                 .values(
                     status=status,
                     retry_count=retry_count,
@@ -57,89 +64,93 @@ async def updated_job_status(
             await db.commit()
 
             await publish_job_updates({
-                "job_id" : job_id,
+                "webhook_id" : webhook_id,
                 "status": status,
                 "retry_count": retry_count,
                 "error_message": error_message
             })
 
             logger.info(
-                f"Updated job {job_id} -> {status}"
+                f"Updated webhook {webhook_id} -> {status}"
             )
         except Exception as e:
             await db.rollback()
 
             logger.error(
-                f"Failed DB update for {job_id}: {str(e)}"
+                f"Failed DB update for {webhook_id}: {str(e)}"
             )
 
 
-async def process_job(event: dict):
+async def process_webhook(event: dict):
     
-    job_id = event['job_id']
-    start_time = time.time()
+    webhook_id = event['webhook_id']
 
     retry_count = int(event.get("retry_count", 0))
 
-    try:
-        await updated_job_status(
-            job_id,
-            "PROCESSING",
-            retry_count
-        )
-
-        logger.info(f"Processing job: {job_id}")
-        await asyncio.sleep(3)
-
-        if random.random() < 0.4:
-            raise Exception("Simulated processing failure")
-
-        await updated_job_status(
-            job_id,
-            "SUCCESS",
-            retry_count
-        )
-
-        jobs_processed_total.inc()
-        job_processing_duration.observe(
-            time.time() - start_time
-        )
-
-        logger.info(
-            f"Job processed successfully: {job_id}"
-        )
-
-    except Exception as e:
-        logger.error(f"Job processing failed for {job_id} : {str(e)}")
-
-        if retry_count < MAX_RETRIES:
-            retry_count += 1
-            job_retries_total.inc()
-            
-            backoff_time = 2 ** retry_count
-
-            await updated_job_status(
-                job_id,
-                "RETRYING",
-                retry_count,
-                str(e)
+    start_time = time.time()
+    
+    while retry_count <= MAX_RETRIES:
+        try:
+            await update_webhook_status(
+                webhook_id,
+                "PROCESSING",
+                retry_count
             )
 
-            logger.warning(
-                f"Retrying job {job_id} "
-                f"in {backoff_time}s "
-                f"(attempt {retry_count})"
+            logger.info(
+                f"Delivering webhook event: "
+                f"{webhook_id}"
             )
 
-            await asyncio.sleep(backoff_time)
+            await deliver_webhook(
+                webhook_url=event["webhook_url"],
+                payload=event["payload"]
+            )
 
-            event["retry_count"] = retry_count
+            await update_webhook_status(
+                webhook_id,
+                "SUCCESS",
+                retry_count
+            )
 
-            await process_job(event)
+            jobs_processed_total.inc()
+            job_processing_duration.observe(
+                time.time() - start_time
+            )
+
+            logger.info(
+                f"Webhook delivered successfully: {webhook_id}"
+            )
+            return
         
-        else:
-            await updated_job_status(
-                job_id,
+        except Exception as e:
+            logger.error(f"Webhook delivery failed for {webhook_id} : {str(e)}")
+
+            if retry_count < MAX_RETRIES:
+                retry_count += 1
+                job_retries_total.inc()
+                
+                backoff_time = 2 ** retry_count
+
+                await update_webhook_status(
+                    webhook_id,
+                    "RETRYING",
+                    retry_count,
+                    str(e)
+                )
+
+                logger.warning(
+                    f"Retrying webhook {webhook_id} "
+                    f"in {backoff_time}s "
+                    f"(attempt {retry_count})"
+                )
+
+                await asyncio.sleep(backoff_time)
+
+                continue
+            
+            await update_webhook_status(
+                webhook_id,
                 "DLQ",
                 retry_count,
                 str(e)
@@ -147,16 +158,24 @@ async def process_job(event: dict):
             jobs_failed_total.inc()
 
             event["final_error"] = str(e)
-            await publish_to_dlq(event)
+            publish_to_dlq(event)
             logger.critical(
-                f"Job moved to DLQ: {job_id}"
+                f"Job moved to DLQ: {webhook_id}"
             )
+            return
 
+async def process_with_semaphore(
+    event: dict
+):
+
+    async with semaphore:
+
+        await process_webhook(event)
 
 async def main():
 
     try:
-
+        start_http_server(9000)
         logger.info("Kafka consumer started")
 
         while True:
@@ -177,7 +196,9 @@ async def main():
                 f"Received event: {event}"
             )
 
-            await process_job(event)
+            asyncio.create_task(
+                process_with_semaphore(event)
+            )
 
     except KeyboardInterrupt:
 

@@ -14,9 +14,9 @@ from sqlalchemy.sql import func
 from api.db.database import Base
 
 
-class Job(Base):
+class WebhookEvent(Base):
 
-    __tablename__ = "jobs"
+    __tablename__ = "webhook_events"
 
     id = Column(
         UUID(as_uuid=True),
@@ -24,7 +24,9 @@ class Job(Base):
         default=uuid.uuid4
     )
 
-    type = Column(String, nullable=False)
+    event_type = Column(String, nullable=False)
+
+    webhook_url = Column(String, nullable=False)
 
     status = Column(String, nullable=False, default="QUEUED")
 

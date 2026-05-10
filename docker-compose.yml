@@ -62,40 +62,61 @@ services:
     container_name: pulsequeue-kafka
     depends_on:
       - zookeeper
+
     ports:
       - "9092:9092"
+
     environment:
       KAFKA_BROKER_ID: 1
+
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
 
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
-prometheus:
-  image: prom/prometheus
-  container_name: pulsequeue-prometheus
-
-  ports:
-    - "9090:9090"
-
-  volumes:
-    - ./prometheus.yml:/etc/prometheus/prometheus.yml
-
-  depends_on:
-    - api
-
-  restart: on-failure
+    restart: on-failure
 
 
-grafana:
-  image: grafana/grafana
-  container_name: pulsequeue-grafana
+  prometheus:
+    image: prom/prometheus
+    container_name: pulsequeue-prometheus
 
-  ports:
-    - "3000:3000"
+    ports:
+      - "9090:9090"
 
-  depends_on:
-    - prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
 
-  restart: on-failure
+    depends_on:
+      - api
+
+    restart: on-failure
+
+
+  grafana:
+    image: grafana/grafana
+    container_name: pulsequeue-grafana
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - grafana-storage:/var/lib/grafana
+
+    depends_on:
+      - prometheus
+
+    restart: on-failure
+
+
+volumes:
+  grafana-storage:
