@@ -1,0 +1,292 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ─── Design Tokens ───────────────────────────────────────────────────── */
+:root {
+  /* Backgrounds — layered, never pure black */
+  --bg-base:        #0d0d12;
+  --bg-surface:     #111117;
+  --bg-elevated:    #16161f;
+  --bg-overlay:     #1c1c28;
+  --bg-hover:       #1f1f2e;
+
+  /* Borders — very restrained */
+  --border-dim:     rgba(255, 255, 255, 0.05);
+  --border-subtle:  rgba(255, 255, 255, 0.08);
+  --border-medium:  rgba(255, 255, 255, 0.11);
+  --border-accent:  rgba(99, 102, 241, 0.25);
+
+  /* Accent — indigo, dialed down */
+  --accent:         #6366f1;
+  --accent-muted:   rgba(99, 102, 241, 0.12);
+  --accent-glow:    rgba(99, 102, 241, 0.08);
+
+  /* Semantic colours */
+  --green:          #34d399;
+  --green-muted:    rgba(52, 211, 153, 0.10);
+  --green-border:   rgba(52, 211, 153, 0.18);
+
+  --amber:          #fbbf24;
+  --amber-muted:    rgba(251, 191, 36, 0.10);
+  --amber-border:   rgba(251, 191, 36, 0.18);
+
+  --red:            #f87171;
+  --red-muted:      rgba(248, 113, 113, 0.10);
+  --red-border:     rgba(248, 113, 113, 0.18);
+
+  --blue:           #60a5fa;
+  --blue-muted:     rgba(96, 165, 250, 0.10);
+  --blue-border:    rgba(96, 165, 250, 0.18);
+
+  --slate:          #64748b;
+  --slate-muted:    rgba(100, 116, 139, 0.10);
+  --slate-border:   rgba(100, 116, 139, 0.18);
+
+  /* Text scale */
+  --text-primary:   #e2e8f0;
+  --text-secondary: #8892a4;
+  --text-tertiary:  #525f72;
+  --text-accent:    #a5b4fc;
+
+  /* Shadows */
+  --shadow-sm:      0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:      0 4px 16px rgba(0,0,0,0.35);
+  --shadow-lg:      0 8px 32px rgba(0,0,0,0.45);
+  --shadow-card:    0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+
+  /* Radii */
+  --radius-sm:      6px;
+  --radius-md:      10px;
+  --radius-lg:      14px;
+  --radius-xl:      18px;
+}
+
+/* ─── Reset ───────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-optical-sizing: auto;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 3px; height: 3px; }
+::-webkit-scrollbar-track    { background: transparent; }
+::-webkit-scrollbar-thumb    { background: rgba(255,255,255,0.08); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+
+/* ─── Typography helpers ──────────────────────────────────────────────── */
+.font-mono { font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace; }
+
+.text-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ─── Animations ──────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes rowFlash {
+  0%   { background-color: rgba(99, 102, 241, 0.07); }
+  100% { background-color: transparent; }
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.45; transform: scale(0.85); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.anim-fade-up       { animation: fadeUp    0.28s ease-out both; }
+.anim-slide-right   { animation: slideRight 0.25s ease-out both; }
+.anim-row-flash     { animation: rowFlash  1s ease-out both; }
+.anim-spin          { animation: spin 0.9s linear infinite; }
+.anim-pulse-dot     { animation: pulseDot 1.8s ease-in-out infinite; }
+
+/* ─── Surface / Card ──────────────────────────────────────────────────── */
+.surface {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.surface-hover:hover {
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Skeleton loader ─────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Badges ──────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─── Inputs ──────────────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  padding: 9px 13px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+}
+.input::placeholder { color: var(--text-tertiary); }
+.input:focus {
+  border-color: rgba(99,102,241,0.4);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.08);
+}
+.input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+textarea.input { resize: none; line-height: 1.6; }
+
+/* ─── Buttons ─────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: opacity 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: rgba(99,102,241,0.5);
+  box-shadow: 0 1px 8px rgba(99,102,241,0.2);
+}
+.btn-primary:hover:not(:disabled) {
+  background: #7173f3;
+  box-shadow: 0 2px 14px rgba(99,102,241,0.28);
+}
+
+.btn-ghost {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,0.07);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+}
+
+/* ─── Sidebar nav item ────────────────────────────────────────────────── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  font-weight: 450;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.14s, background 0.14s;
+  border: 1px solid transparent;
+  user-select: none;
+  width: 100%;
+  text-align: left;
+}
+.nav-item:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.04);
+}
+.nav-item.active {
+  color: var(--text-accent);
+  background: var(--accent-muted);
+  border-color: var(--border-accent);
+}
+
+/* ─── Table ───────────────────────────────────────────────────────────── */
+.table-row {
+  border-bottom: 1px solid var(--border-dim);
+  transition: background 0.12s ease;
+}
+.table-row:hover { background: rgba(255,255,255,0.025); }
+.table-row:last-child { border-bottom: none; }
+
+/* ─── Modal overlay ───────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+}

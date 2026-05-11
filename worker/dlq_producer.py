@@ -23,7 +23,7 @@ def publish_to_dlq(event: dict):
 
         producer.flush()
 
-        logger.warning(f"Job has been sent to the DLQ: {event['job_id']}")
+        logger.warning(f"Job has been sent to the DLQ: {event['webhook_id']}")
 
     except Exception as e:
         logger.error(f"failed to publish the DLQ: {str(e)}")

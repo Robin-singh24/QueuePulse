@@ -18,7 +18,7 @@ async def deliver_webhook(webhook_url: str,payload: dict):
                 timeout=10
             )
 
-        response.raise_for_status()
+            response.raise_for_status()
 
         logger.info(
             f"Webhook delivered successfully "
