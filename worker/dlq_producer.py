@@ -6,9 +6,10 @@ from confluent_kafka import Producer
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from shared.config import KAFKA_BOOTSTRAP_SERVERS
 
 config ={
-    "bootstrap.servers": "kafka:9092"
+    "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS
 }
 
 producer = Producer(config)
