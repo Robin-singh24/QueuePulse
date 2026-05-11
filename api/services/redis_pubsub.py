@@ -19,28 +19,36 @@ redis_client = redis.from_url(
 CHANNEL_NAME = "job_updates"
 
 async def redis_subscriber():
-    try:
-        pubsub = redis_client.pubsub()
+    while True:
+        try:
 
-        await pubsub.subscribe(CHANNEL_NAME)
-        logger.info(f"Subscribered to: {CHANNEL_NAME}")
+            logger.info("Starting Redis subscriber...")
 
-        while True:
-            message = await pubsub.get_message(
-                ignore_subscribe_messages=True,
-                timeout=1.0
-            )
+            pubsub = redis_client.pubsub()
 
-            if message:
-                data = json.loads(message["data"])
-                logger.info(
-                    f"Broadcasting websocket event: {data}"
+            await pubsub.subscribe(CHANNEL_NAME)
+            logger.info(f"Subscribered to: {CHANNEL_NAME}")
+
+            while True:
+                message = await pubsub.get_message(
+                    ignore_subscribe_messages=True,
+                    timeout=1.0
                 )
 
-                await manager.broadcast(data)
-            await asyncio.sleep(0.1)
+                if message:
+                    data = json.loads(message["data"])
+                    logger.info(
+                        f"Broadcasting websocket event: {data}"
+                    )
 
-    except Exception as e:
-        logger.error(
-            f"Redis subscriber failed: {str(e)}"
-        )
+                    await manager.broadcast(data)
+                await asyncio.sleep(0.1)
+
+        except Exception as e:
+            logger.error(
+                f"Redis subscriber failed: {str(e)}"
+            )
+
+            logger.warning("Retrying Redis connection in 5 seconds...")
+
+            await asyncio.sleep(5)
